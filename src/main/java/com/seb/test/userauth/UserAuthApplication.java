@@ -15,8 +15,8 @@ public class UserAuthApplication {
     SpringApplication.run(UserAuthApplication.class, args);
   }
 
-  @Bean
+  /*@Bean
   public Clock clock() {
     return Clock.systemDefaultZone();
-  }
+  }*/
 }

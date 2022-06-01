@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Clock;
 import java.time.LocalDateTime;
 
 /**
@@ -28,16 +27,13 @@ public class DefaultBruteForceProtectionService implements BruteForceProtectionS
   @Autowired
   private UserLoginRepository userLoginRepository;
 
-  @Autowired
-  Clock clock;
-
   @Override
   @Transactional
   public void registerLoginFailure(String username) {
 
     UserLoginEntity user = getUser(username);
     if (user != null && !user.isLoginDisabled()) {
-      var now = LocalDateTime.now(clock);
+      var now = LocalDateTime.now();
 
       if (isResetFailedAttempt(user, now)) {
         resetFailedCounter(user.getUsername());
@@ -47,7 +43,7 @@ public class DefaultBruteForceProtectionService implements BruteForceProtectionS
       }
 
       userLoginRepository.save(user.toBuilder().failedLoginAttempts(user.getFailedLoginAttempts() + 1).build());
-    } else if (user != null && user.getLastFailedAt().plusSeconds(blockDuration).isAfter(LocalDateTime.now(clock))) {
+    } else if (user != null && user.getLastFailedAt().plusSeconds(blockDuration).isAfter(LocalDateTime.now())) {
       userLoginRepository.save(UserLoginEntity.from(username));
     } else {
       userLoginRepository.save(UserLoginEntity.from(username));

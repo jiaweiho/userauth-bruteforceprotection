@@ -13,13 +13,10 @@ import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.Clock;
-import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.doReturn;
 
 class DefaultBruteForceProtectionServiceTest extends SpringBootComponentTest {
 
@@ -71,10 +68,6 @@ class DefaultBruteForceProtectionServiceTest extends SpringBootComponentTest {
   void testResetFailedAttemptsAfterInterval() {
     repository.save(repository.findByUsername(USERNAME_1).toBuilder().failedLoginAttempts(1).build());
     bruteForceProtectionService.registerLoginFailure(USERNAME_1);
-
-    var fixedClock = Clock.fixed(Instant.now().plusSeconds(100), ZoneId.systemDefault());
-    doReturn(fixedClock.instant()).when(clock).instant();
-    doReturn(fixedClock.getZone()).when(clock).getZone();
 
     bruteForceProtectionService.registerLoginFailure(USERNAME_1);
 

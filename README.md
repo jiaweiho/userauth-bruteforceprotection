@@ -24,9 +24,20 @@ Added this for easier migration of table changes.
 
 ### User and User login in database
 
-UUser keeps track of username and password only whereas user login will keep track of
-all failed attempts.
+User keeps track of username and password only whereas user login will keep track of
+all failed attempts. E.g. the number of failed attempts, if maximum attempts has been reached and
+the failed attempts should be done within a window of time. The user will be blocked
+
+### Integration Test
+
+There is integration test that shows it's able to authenticate the user and
+when it's unauthenticated.
 
 ## Final Remarks of this assignment
 
-The solution has tests that shows the authentication works if user 
+As mentioned integration tests exist, but when run through as a batch it doesn't pass.
+Only when run individually with exception of ...thenReset.
+
+I haven't been able to verify the solution with the Angular client because of an error on
+CORS. I tried to add the origin and configurations around it but couldn't get it to work.
+I've tried to do with my best effort, within the scope and timeline and my capability.  

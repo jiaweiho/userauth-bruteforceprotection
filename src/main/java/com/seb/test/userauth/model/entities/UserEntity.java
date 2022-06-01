@@ -3,17 +3,22 @@ package com.seb.test.userauth.model.entities;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
-import java.util.List;
+import javax.persistence.*;
+import java.util.UUID;
 
 @Data
+@Entity
+@Table(name = "user")
+@Builder(toBuilder = true)
 @AllArgsConstructor
-@Builder
+@NoArgsConstructor
 public class UserEntity {
-  private boolean loginDisabled;
-  private boolean accountVerified;
-  private int failedLoginAttempts;
-  private String email;
+  @Id
+  @GeneratedValue(strategy = GenerationType.AUTO)
+  private UUID id;
+
+  private String username;
   private String password;
-  private List<String> authorities;
 }

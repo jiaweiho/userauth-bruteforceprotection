@@ -1,123 +1,84 @@
 package com.seb.test.userauth.security;
 
-import com.seb.test.userauth.model.entities.UserEntity;
-import com.seb.test.userauth.repository.UserRepository;
+import com.seb.test.userauth.model.entities.UserLoginEntity;
+import com.seb.test.userauth.repository.UserLoginRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Default protection identifying the request by username.
+ */
 @Service("bruteForceProtectionService")
 public class DefaultBruteForceProtectionService implements BruteForceProtectionService {
 
-  @Value("${userauth.security.failedlogin.count}")
-  private int maxFailedLogins;
+  @Value("${userauth.security.interval.calculate.attempt}")
+  private Long intervalCalculateAttempt;
+
+  @Value("${userauth.security.max.failed.logins}")
+  private Integer maxFailedLogins;
+
+  @Value("${userauth.security.block.duration}")
+  private Integer blockDuration;
 
   @Autowired
-  UserRepository userRepository;
+  private UserLoginRepository userLoginRepository;
 
-  @Value("${userauth.brute.force.cache.max}")
-  private int cacheMaxLimit;
-
-  private final ConcurrentHashMap<String, FailedLogin> cache;
-
-  public DefaultBruteForceProtectionService() {
-    this.cache = new ConcurrentHashMap<>(cacheMaxLimit); //setting max limit for cache
-  }
+  @Autowired
+  Clock clock;
 
   @Override
+  @Transactional
   public void registerLoginFailure(String username) {
 
-    UserEntity user = getUser(username);
+    UserLoginEntity user = getUser(username);
     if (user != null && !user.isLoginDisabled()) {
-      int failedCounter = user.getFailedLoginAttempts();
-      if (maxFailedLogins < failedCounter + 1) {
-        user.setLoginDisabled(true); //disabling the account
-      } else {
-        //let's update the counter
-        user.setFailedLoginAttempts(failedCounter + 1);
+      var now = LocalDateTime.now(clock);
+
+      if (isResetFailedAttempt(user, now)) {
+        resetFailedCounter(user.getUsername());
       }
-      userRepository.save(user);
+      if (isBruteForceAttack(username, now)) {
+        user = user.toBuilder().loginDisabled(true).build();
+      }
+
+      userLoginRepository.save(user.toBuilder().failedLoginAttempts(user.getFailedLoginAttempts() + 1).build());
+    } else if (user != null && user.getLastFailedAt().plusSeconds(blockDuration).isAfter(LocalDateTime.now(clock))) {
+      userLoginRepository.save(UserLoginEntity.from(username));
+    } else {
+      userLoginRepository.save(UserLoginEntity.from(username));
     }
   }
 
+  private boolean isResetFailedAttempt(UserLoginEntity user, LocalDateTime now) {
+    return user.getStartFailedAt() != null && now.isAfter(user.getStartFailedAt().plusSeconds(intervalCalculateAttempt));
+  }
+
   @Override
-  public void resetFailedCounter(String email) {
-    UserEntity user = getUser(email);
+  public void resetFailedCounter(String username) {
+    UserLoginEntity user = getUser(username);
     if (user != null) {
       user.setFailedLoginAttempts(0);
       user.setLoginDisabled(false);
-      userRepository.save(user);
+      userLoginRepository.save(user);
     }
   }
 
   @Override
-  public boolean isBruteForceAttack(String username) {
-    UserEntity user = getUser(username);
+  public boolean isBruteForceAttack(String username, LocalDateTime now) {
+    UserLoginEntity user = getUser(username);
     if (user != null) {
-      return user.getFailedLoginAttempts() >= maxFailedLogins ? true : false;
+      LocalDateTime failedAt = user.getStartFailedAt();
+      return failedAt != null && now.isBefore(failedAt.plusSeconds(intervalCalculateAttempt)) && user.getFailedLoginAttempts() + 1 >= maxFailedLogins;
     }
     return false;
   }
 
-  protected FailedLogin getFailedLogin(final String username) {
-    FailedLogin failedLogin = cache.get(username.toLowerCase());
-
-    if (failedLogin == null) {
-      //setup the initial data
-      failedLogin = new FailedLogin(0, LocalDateTime.now());
-      cache.put(username.toLowerCase(), failedLogin);
-      if (cache.size() > cacheMaxLimit) {
-
-        // add the logic to remve the key based by timestamp
-      }
-    }
-    return failedLogin;
-  }
-
-  private UserEntity getUser(final String username) {
-    return userRepository.findByEmail(username);
-  }
-
-  public int getMaxFailedLogins() {
-    return maxFailedLogins;
-  }
-
-  public void setMaxFailedLogins(int maxFailedLogins) {
-    this.maxFailedLogins = maxFailedLogins;
-  }
-
-  public class FailedLogin {
-
-    private int count;
-    private LocalDateTime date;
-
-    public FailedLogin() {
-      this.count = 0;
-      this.date = LocalDateTime.now();
-    }
-
-    public FailedLogin(int count, LocalDateTime date) {
-      this.count = count;
-      this.date = date;
-    }
-
-    public int getCount() {
-      return count;
-    }
-
-    public void setCount(int count) {
-      this.count = count;
-    }
-
-    public LocalDateTime getDate() {
-      return date;
-    }
-
-    public void setDate(LocalDateTime date) {
-      this.date = date;
-    }
+  private UserLoginEntity getUser(final String username) {
+    return userLoginRepository.findByUsername(username);
   }
 }

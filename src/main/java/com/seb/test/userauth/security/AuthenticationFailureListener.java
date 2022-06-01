@@ -19,6 +19,5 @@ public class AuthenticationFailureListener implements ApplicationListener<Authen
     String username = event.getAuthentication().getName();
     log.info("********* login failed for user {} ", username);
     bruteForceProtectionService.registerLoginFailure(username);
-
   }
 }

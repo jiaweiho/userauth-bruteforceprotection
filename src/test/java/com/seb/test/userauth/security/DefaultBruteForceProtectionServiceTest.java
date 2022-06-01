@@ -1,12 +1,90 @@
 package com.seb.test.userauth.security;
 
-class DefaultBruteForceProtectionServiceTest {
+import com.seb.test.userauth.SpringBootComponentTest;
+import com.seb.test.userauth.model.entities.UserLoginEntity;
+import com.seb.test.userauth.repository.UserLoginRepository;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.Mock;
+import org.springframework.beans.factory.annotation.Autowired;
 
-  void testMaxFailedAttempts() {
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.UUID;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.doReturn;
+
+class DefaultBruteForceProtectionServiceTest extends SpringBootComponentTest {
+
+  private static String USERNAME_1 = "wei@webtest.com";
+
+  @Autowired
+  private BruteForceProtectionService bruteForceProtectionService;
+
+  @Autowired
+  private UserLoginRepository repository;
+
+  @Captor
+  private ArgumentCaptor<UserLoginEntity> userCaptor;
+
+  @Mock
+  private Clock clock;
+
+  @BeforeEach
+  public void setUp() {
+    repository.save(getDefaultUser());
   }
 
-  void testResetFailedAttempts() {
+  @AfterEach
+  public void cleanUp() {
+    repository.deleteAll();
+  }
 
+  @Test
+  void testFailedAttempts() {
+    bruteForceProtectionService.registerLoginFailure(USERNAME_1);
+
+    var result = repository.findByUsername(USERNAME_1);
+    //verify(repository).save(userCaptor.capture());
+    assertEquals(1, result.getFailedLoginAttempts());
+  }
+
+  @Test
+  void testMaxFailedAttempts() {
+    var username = repository.save(repository.findByUsername(USERNAME_1).toBuilder().failedLoginAttempts(1).build()).getUsername();
+    bruteForceProtectionService.registerLoginFailure(username);
+    var result = repository.findByUsername(username);
+    //verify(repository).save(userCaptor.capture());
+    assertEquals(2, result.getFailedLoginAttempts());
+    assertTrue(result.isLoginDisabled());
+  }
+
+  @Test
+  @Disabled
+  void testResetFailedAttemptsAfterInterval() {
+    repository.save(repository.findByUsername(USERNAME_1).toBuilder().failedLoginAttempts(1).build());
+    bruteForceProtectionService.registerLoginFailure(USERNAME_1);
+
+    var fixedClock = Clock.fixed(Instant.now().plusSeconds(100), ZoneId.systemDefault());
+    doReturn(fixedClock.instant()).when(clock).instant();
+    doReturn(fixedClock.getZone()).when(clock).getZone();
+
+    bruteForceProtectionService.registerLoginFailure(USERNAME_1);
+
+    var result = repository.findByUsername(USERNAME_1);
+    //verify(repository).save(userCaptor.capture());
+    assertEquals(0, result.getFailedLoginAttempts());
+    assertFalse(result.isLoginDisabled());
+  }
+
+  private UserLoginEntity getDefaultUser() {
+    return UserLoginEntity.builder().id(UUID.randomUUID()).username(USERNAME_1).failedLoginAttempts(0).startFailedAt(LocalDateTime.now()).build();
   }
 }

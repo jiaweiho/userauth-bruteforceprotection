@@ -6,11 +6,11 @@ This was done as an assignment for SEB. The constraints and requirements was des
 
 ### WebSecurityConfig
 
-The configuration uses Spring security where MyUserDetailsService will load the user by username.
-If user is not authenticated then AuthenticationFailureListener and AuthenticationSuccessListener
+The configuration uses Spring security where MyUserDetailsService will load the user into authentication.
+If user is not correctly authenticated then AuthenticationFailureListener and AuthenticationSuccessListener
 will be called. This way there was no need to create a specific endpoint that
-would've authenticated. Now endpoints are specified and applied through the above mentioned class's configure
-method configure().
+would've been used for authentication. Now endpoints are specified and applied through the above mentioned class's configure
+method configure() which means more than one endpoint can be secured easily.
 
 ### BruteForceProtectionService
 
@@ -40,4 +40,10 @@ Only when run individually with exception of ...thenReset.
 
 I haven't been able to verify the solution with the Angular client because of an error on
 CORS. I tried to add the origin and configurations around it but couldn't get it to work.
-I've tried to do with my best effort, within the scope and timeline and my capability.  
+What you see is my best effort, within the scope and timeline and my capability.  
+
+Otherwise WebSecurityAdapter has been deprecated, improvement would be to use the new way 
+of adding beans into WebSecurityConfig without extending any class. 
+
+It's also not 100% code coverage... although very rare case to have bugs. Improvement would 
+also be to introduce indices and cache for performance.
